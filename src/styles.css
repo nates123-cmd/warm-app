@@ -194,3 +194,15 @@ h2 { font-family: var(--serif); font-weight: 500; font-size: 20px; margin: 0 0 6
 .auth-btn-link { background: none; border: 0; color: var(--paper-mute); font: inherit; font-size: 12px; cursor: pointer; }
 .auth-hint { font-size: 13px; color: var(--paper-dim); margin: 0; }
 .auth-error { color: var(--bad); font-size: 13px; }
+
+.queries { display: flex; flex-direction: column; gap: 7px; margin: 10px 0; }
+.query-row { display: flex; gap: 7px; align-items: center; }
+.query-row input {
+  flex: 1; min-width: 0; background: var(--ink-3); border: 1px solid var(--line);
+  color: var(--paper); font: inherit; padding: 8px 10px; border-radius: 7px;
+}
+.query-row .ghost {
+  background: none; border: 0; color: var(--paper-mute);
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 4px 8px;
+}
+.query-row .ghost:hover { color: var(--bad); }

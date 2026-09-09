@@ -3,11 +3,13 @@ import { supabase } from './lib/supabase'
 import { Feed } from './surfaces/Feed'
 import { Import } from './surfaces/Import'
 import { Review } from './surfaces/Review'
+import { Settings } from './surfaces/Settings'
 
 const VIEWS = [
   { key: 'feed', label: 'Jobs' },
   { key: 'review', label: 'Review' },
   { key: 'import', label: 'Import' },
+  { key: 'settings', label: 'Setup' },
 ]
 
 export default function App() {
@@ -51,6 +53,7 @@ export default function App() {
         {view === 'feed' && <Feed tab={tab} setTab={setTab} />}
         {view === 'review' && <Review ownerId={ownerId} />}
         {view === 'import' && <Import ownerId={ownerId} />}
+        {view === 'settings' && <Settings ownerId={ownerId} />}
       </main>
     </div>
   )

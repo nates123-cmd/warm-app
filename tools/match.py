@@ -28,6 +28,10 @@ GENERIC = {
     "digital", "health", "healthcare", "financial", "insurance", "bank",
     "software", "engineering", "design", "development", "properties",
     "realty", "real", "estate", "energy", "resources", "communications",
+    "architects", "architecture", "contractors", "contracting", "builders",
+    "construction", "engineers", "consultants", "group", "company", "agency",
+    "foundation", "institute", "university", "college", "school", "hospital",
+    "medical", "legal", "law", "brands", "products", "manufacturing",
 }
 
 # Roles that carry real pull. Ordered: first hit wins.
@@ -48,16 +52,22 @@ def core(norm):
     return " ".join(toks) if toks else norm
 
 
-def plausible(a, b):
-    """Guard the fuzzy match against short-string coincidence.
-
-    "thermo" vs "hero" scores 0.80 and "nbcuniversal" vs "universal" scores
-    0.86 on raw similarity, but neither is the same company. Require a shared
-    real token, or near-identity when both sides are a single word.
-    """
+def shares_token(a, b):
+    """True when the two cores share an identifying word outright."""
     ta, tb = set(a.split()), set(b.split())
-    if any(t in tb for t in ta if len(t) >= 4):
+    return any(t in tb for t in ta if len(t) >= 4)
+
+
+def plausible(a, b):
+    """Worth *asking* about. Deliberately looser than shares_token.
+
+    "thermo" vs "hero" scores 0.80 and "nbcuniversal" vs "universal" 0.86 on raw
+    similarity; neither is the same company, so a shared real word is required —
+    or near-identity when both sides reduce to a single word.
+    """
+    if shares_token(a, b):
         return True
+    ta, tb = a.split(), b.split()
     return len(ta) == 1 and len(tb) == 1 and SequenceMatcher(None, a, b).ratio() >= 0.93
 
 
@@ -111,9 +121,14 @@ def main():
     except FileNotFoundError:
         aliases = {}
 
-    # Your own connections are a direct ask; a borrowed network needs a warm
-    # handoff first, so it is worth slightly less.
-    source_weights = {"nate": 1.5}
+    # Trust weights are per-source and live in the DB (fetch_contacts.py writes
+    # them out): your own connections are a direct ask, a borrowed network needs
+    # a warm handoff first.
+    try:
+        with open("data/source_weights.json") as fh:
+            source_weights = json.load(fh)
+    except FileNotFoundError:
+        source_weights = {}
 
     # Dedupe: the same person shows up repeatedly across and within exports.
     by_company = collections.defaultdict(dict)
@@ -142,7 +157,11 @@ def main():
                 score = SequenceMatcher(None, jc, ck).ratio()
                 if score > best_score:
                     best, best_score = originals[0], score
-            if best and best_score >= AUTO:
+            # Auto-accept demands a shared identifying word. Near-identity on a
+            # single token is not enough: "Dynamic Resources" and "Dynamics
+            # Ventures" both reduce to one near-identical word and are unrelated
+            # companies, so that case must be asked about, never assumed.
+            if best and best_score >= AUTO and shares_token(jc, core(best)):
                 hits, confidence = by_company[best], "fuzzy"
             elif best and best_score >= REVIEW:
                 review.append({

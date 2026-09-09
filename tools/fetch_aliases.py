@@ -7,12 +7,13 @@ import urllib.request
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--owner", default=os.environ.get("WARM_OWNER_ID"))
     ap.add_argument("--out", default="data/aliases.json")
     args = ap.parse_args()
 
     url = os.environ["SUPABASE_URL"].rstrip("/")
     key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-    owner = os.environ["WARM_OWNER_ID"]
+    owner = args.owner
 
     req = urllib.request.Request(
         f"{url}/rest/v1/warm_company_aliases"

@@ -40,6 +40,26 @@ generic industry words dominate the comparison.
 inverse-log in the number of contacts at that company. One senior contact at a
 small firm outranks thirty at Amazon.
 
+## Several people at once
+
+Each job hunter is one row in `warm_profiles` (their searches, their Telegram
+chat id) and one `owner_id` everywhere else. RLS keeps the networks separate:
+nobody sees anyone else's contacts. The daily job loops every active profile,
+matching each person only against their own imported connections.
+
+Someone new signs in with their email, sets their searches under **Setup**, and
+drops their connection CSVs into **Import**. Nothing to configure by hand.
+
+```bash
+python3 tools/list_profiles.py                    # who is active
+python3 tools/run_profile.py --owner <uuid>       # one person, end to end
+python3 tools/find_chat_id.py                     # after they message the bot
+./tools/run_daily.sh                              # everyone (cron entry point)
+```
+
+The digest only ever sends a job once — `warm_jobs.digest_sent_at` is stamped on
+send, so the same opening never reappears tomorrow even if it is still untriaged.
+
 ## Layout
 
 | Path | What |
@@ -48,7 +68,10 @@ small firm outranks thirty at Amazon.
 | `tools/import_contacts.py` | Parses all five CSV export shapes |
 | `tools/match.py` | Company matching + strength ranking |
 | `tools/load_supabase.py` | Emits idempotent upsert SQL |
-| `tools/run_daily.sh` | The cron entry point |
+| `tools/run_profile.py` | One person, end to end |
+| `tools/run_daily.sh` | Every active profile (cron entry point) |
+| `tools/digest.py` | Telegram digest, sends each job once |
+| `tools/fetch_contacts.py` | Materializes one owner's contacts for the matcher |
 | `src/lib/parseContacts.js` | Browser port of the importer |
 | `supabase/migrations/` | Schema, RLS, and the `warm_feed` view |
 
@@ -65,7 +88,8 @@ python3 tools/match.py
 python3 tools/load_supabase.py --owner "$WARM_OWNER_ID"
 supabase db query --linked -f data/load.sql
 
-npx vitest run                      # JS/Python parser parity
+npx vitest run                                       # JS/Python parser parity
+python3 -m unittest discover -s tests -p 'test_*.py' # matcher regressions
 ```
 
 Edit `tools/queries.json` to change which titles and locations get pulled.
@@ -79,3 +103,11 @@ Edit `tools/queries.json` to change which titles and locations get pulled.
   state.
 - All tables are RLS'd to `auth.uid()`; the daily job writes with the service
   role and an explicit owner id.
+- **Views need `security_invoker = on`.** Without it a view runs with definer
+  rights and returns every owner's rows to any caller, straight past RLS.
+  `create or replace view` also cannot insert a column mid-list — drop first,
+  and restate `security_invoker`, which is not inherited.
+- Fuzzy auto-accept requires a *shared identifying word*, never mere string
+  closeness. "Dynamic Resources" and "Dynamics Ventures" both reduce to one
+  near-identical token and are unrelated companies; that case gets asked about,
+  never assumed. See `tests/test_match.py`.
