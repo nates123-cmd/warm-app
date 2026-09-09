@@ -17,6 +17,7 @@ export default function App() {
   const [view, setView] = useState('feed')
   const [tab, setTab] = useState('best')
   const [ownerId, setOwnerId] = useState(null)
+  const [email, setEmail] = useState(null)
   const [reviewCount, setReviewCount] = useState(0)
 
   const [claimed, setClaimed] = useState(null)
@@ -25,6 +26,7 @@ export default function App() {
     supabase.auth.getUser().then(async ({ data }) => {
       const id = data?.user?.id ?? null
       setOwnerId(id)
+      setEmail(data?.user?.email ?? null)
       // Config staged before they had an account attaches itself here.
       const pending = await claimPendingProfile(id)
       if (pending) setClaimed(pending)
@@ -57,6 +59,21 @@ export default function App() {
           ))}
         </nav>
       </header>
+
+      {/* Every app on this domain shares one session, so who you are signed in
+          as is not obvious. Say it, and give a way out. */}
+      <div className="whoami">
+        <span className="muted">{email}</span>
+        <button
+          className="signout"
+          onClick={async () => {
+            await supabase.auth.signOut()
+            window.location.reload()
+          }}
+        >
+          sign out
+        </button>
+      </div>
 
       {claimed && (
         <div className="ok">

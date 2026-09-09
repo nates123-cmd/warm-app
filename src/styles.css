@@ -242,3 +242,15 @@ h2 { font-family: var(--serif); font-weight: 500; font-size: 20px; margin: 0 0 6
 .tabs { overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { white-space: nowrap; }
+
+/* Sessions are shared across every app on this domain, so name the account. */
+.whoami {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 var(--pad) 8px; font-size: 12px;
+}
+.signout {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--paper-mute); font: inherit; font-size: 12px;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.signout:hover { color: var(--ember-hot); }
