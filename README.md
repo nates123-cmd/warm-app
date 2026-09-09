@@ -40,6 +40,31 @@ generic industry words dominate the comparison.
 inverse-log in the number of contacts at that company. One senior contact at a
 small firm outranks thirty at Amazon.
 
+## Two axes
+
+Warmth answers *can I get a look in*. Fit answers *do I even want this*. They are
+scored independently, and the jobs that land on both are the ones to act on
+first — that is the **Best** tab.
+
+Fit needs the job description, which the search endpoint does not return, so
+`enrich_jobs.py` fetches each posting's detail page for the description plus
+LinkedIn's own structured fields (seniority, employment type, function,
+industries) and parses the salary range out of the body text.
+
+Scoring is transparent by design: every score carries its reasons, because an
+unexplained number is neither actionable nor debuggable. Title match dominates,
+then seniority, matching themes, salary against a floor, and workplace
+preference. Excluded titles and phrases are a hard reject, not a penalty.
+
+Bands were **calibrated against jobs the user had already saved by hand** —
+those scored 57–78, median 66 — so `strong` is 65 and `worth a look` is 48. An
+earlier 70 cut caught only one of her four picks. `tests/test_fit.py` pins that
+relationship so it cannot drift.
+
+Someone's searches and criteria live in `profiles/<name>.json` (gitignored — the
+repo is public). `apply_profile.py` attaches them to their account after they
+have signed in once.
+
 ## Several people at once
 
 Each job hunter is one row in `warm_profiles` (their searches, their Telegram
@@ -68,6 +93,9 @@ send, so the same opening never reappears tomorrow even if it is still untriaged
 | `tools/import_contacts.py` | Parses all five CSV export shapes |
 | `tools/match.py` | Company matching + strength ranking |
 | `tools/load_supabase.py` | Emits idempotent upsert SQL |
+| `tools/enrich_jobs.py` | Fetches descriptions + structured fields + salary |
+| `tools/fit.py` | Fit scoring and the band thresholds |
+| `tools/apply_profile.py` | Attaches a profiles/*.json to a signed-in account |
 | `tools/run_profile.py` | One person, end to end |
 | `tools/run_daily.sh` | Every active profile (cron entry point) |
 | `tools/digest.py` | Telegram digest, sends each job once |
@@ -107,6 +135,12 @@ Edit `tools/queries.json` to change which titles and locations get pulled.
   rights and returns every owner's rows to any caller, straight past RLS.
   `create or replace view` also cannot insert a column mid-list — drop first,
   and restate `security_invoker`, which is not inherited.
+- Enrichment is one request per posting, so only ever enrich what has no
+  description yet. A re-scrape refreshes enrichment and fit but must never
+  touch `status`, `note` or `digest_sent_at` — those belong to the person.
+- Excluded titles match on word boundaries. A bare `"art"` correctly rejects
+  "Associate Creative Director Art" without touching "Marketplace Partnership";
+  `"art director"` alone misses it, since that word order never appears.
 - Fuzzy auto-accept requires a *shared identifying word*, never mere string
   closeness. "Dynamic Resources" and "Dynamics Ventures" both reduce to one
   near-identical token and are unrelated companies; that case gets asked about,

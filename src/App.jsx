@@ -14,7 +14,7 @@ const VIEWS = [
 
 export default function App() {
   const [view, setView] = useState('feed')
-  const [tab, setTab] = useState('connected')
+  const [tab, setTab] = useState('best')
   const [ownerId, setOwnerId] = useState(null)
   const [reviewCount, setReviewCount] = useState(0)
 

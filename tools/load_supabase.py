@@ -72,6 +72,16 @@ def main():
         "company_slug": j["company_slug"], "location": j["location"],
         "url": j["url"], "posted_on": j["posted_on"],
         "query_label": j["query_label"],
+        "description": j.get("description"),
+        "seniority_level": j.get("seniority_level"),
+        "employment_type": j.get("employment_type"),
+        "job_function": j.get("job_function"),
+        "industries": j.get("industries"),
+        "salary_min": j.get("salary_min"), "salary_max": j.get("salary_max"),
+        "workplace": j.get("workplace"),
+        "fit": j.get("fit"),
+        "fit_reasons": json.dumps(j.get("fit_reasons") or []),
+        "enriched": bool(j.get("description")),
     } for j in jobs]
 
     jc_rows = [{
@@ -118,14 +128,35 @@ on conflict (owner_id, contact_id, company_norm) do update
   set role = excluded.role, seniority = excluded.seniority;
 
 insert into warm_jobs (owner_id, linkedin_job_id, title, company_raw, company_norm,
-                       company_slug, location, url, posted_on, query_label)
+                       company_slug, location, url, posted_on, query_label,
+                       description, seniority_level, employment_type, job_function,
+                       industries, salary_min, salary_max, workplace, fit, fit_reasons,
+                       enriched_at)
 select '{owner}'::uuid, x.linkedin_job_id, x.title, x.company_raw, x.company_norm,
-       x.company_slug, x.location, x.url, x.posted_on, x.query_label
+       x.company_slug, x.location, x.url, x.posted_on, x.query_label,
+       x.description, x.seniority_level, x.employment_type, x.job_function,
+       x.industries, x.salary_min, x.salary_max, x.workplace, x.fit,
+       x.fit_reasons::jsonb, case when x.enriched then now() else null end
 from json_to_recordset({lit(job_rows)}::json)
      as x(linkedin_job_id text, title text, company_raw text, company_norm text,
-          company_slug text, location text, url text, posted_on date, query_label text)
--- Never clobber triage state on a re-scrape.
-on conflict (owner_id, linkedin_job_id) do nothing;
+          company_slug text, location text, url text, posted_on date, query_label text,
+          description text, seniority_level text, employment_type text, job_function text,
+          industries text, salary_min int, salary_max int, workplace text, fit int,
+          fit_reasons text, enriched boolean)
+-- Refresh enrichment and fit on a re-scrape, but never touch triage state
+-- (status, note, digest_sent_at) — those belong to the person, not the scraper.
+on conflict (owner_id, linkedin_job_id) do update set
+  description     = coalesce(excluded.description, warm_jobs.description),
+  seniority_level = coalesce(excluded.seniority_level, warm_jobs.seniority_level),
+  employment_type = coalesce(excluded.employment_type, warm_jobs.employment_type),
+  job_function    = coalesce(excluded.job_function, warm_jobs.job_function),
+  industries      = coalesce(excluded.industries, warm_jobs.industries),
+  salary_min      = coalesce(excluded.salary_min, warm_jobs.salary_min),
+  salary_max      = coalesce(excluded.salary_max, warm_jobs.salary_max),
+  workplace       = coalesce(excluded.workplace, warm_jobs.workplace),
+  fit             = coalesce(excluded.fit, warm_jobs.fit),
+  fit_reasons     = coalesce(excluded.fit_reasons, warm_jobs.fit_reasons),
+  enriched_at     = coalesce(excluded.enriched_at, warm_jobs.enriched_at);
 
 insert into warm_job_contacts (owner_id, job_id, contact_id, strength, confidence, contacts_at_company)
 select '{owner}'::uuid, j.id, c.id, x.strength, x.confidence, x.contacts_at_company

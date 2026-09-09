@@ -23,6 +23,7 @@ def main():
     ap.add_argument("--tpr", default="r86400")
     ap.add_argument("--max-pages", type=int, default=4)
     ap.add_argument("--skip-digest", action="store_true")
+    ap.add_argument("--skip-enrich", action="store_true")
     args = ap.parse_args()
 
     profiles = select("warm_profiles", {"owner_id": f"eq.{args.owner}", "select": "*"})
@@ -47,6 +48,15 @@ def main():
     run("tools/fetch_contacts.py", "--owner", args.owner)
     run("tools/scrape_jobs.py", "--queries", qpath,
         "--tpr", args.tpr, "--max-pages", str(args.max_pages))
+
+    # Fit needs the description, which only the detail endpoint carries.
+    if not args.skip_enrich:
+        run("tools/enrich_jobs.py")
+    crit_path = os.path.join(ROOT, "data", f"criteria_{args.owner}.json")
+    with open(crit_path, "w") as fh:
+        json.dump({"fit_criteria": p.get("fit_criteria") or {}}, fh)
+    run("tools/fit.py", "--profile", crit_path)
+
     run("tools/match.py")
     run("tools/load_supabase.py", "--owner", args.owner)
 

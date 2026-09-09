@@ -1,0 +1,16 @@
+{
+  "display_name": "Example",
+  "queries": [
+    { "keywords": "Copywriter", "location": "New York, New York, United States" }
+  ],
+  "fit_criteria": {
+    "titles_target": ["copywriter"],
+    "titles_strong": ["senior copywriter"],
+    "titles_exclude": ["intern", "junior"],
+    "seniority_target": ["Mid-Senior level"],
+    "keywords_good": ["brand voice"],
+    "keywords_bad": ["security clearance"],
+    "min_salary": null,
+    "workplace_pref": "any"
+  }
+}

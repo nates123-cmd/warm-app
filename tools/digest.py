@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from db import patch, select  # noqa: E402
 
 MAX_JOBS = 10
+STRONG = 65   # keep in step with tools/fit.py and src/lib/useFeed.js
 
 
 def send(token, chat_id, text):
@@ -44,30 +45,56 @@ def main():
         raise SystemExit("TELEGRAM_BOT_TOKEN not set")
     app_url = os.environ.get("WARM_APP_URL", "")
 
+    # Worth sending on either axis: someone you know there, or a job that
+    # closely matches what you are looking for.
     rows = select("warm_feed", {
         "owner_id": f"eq.{args.owner}",
         "status": "eq.new",
-        "contact_name": "not.is.null",
         "digest_sent_at": "is.null",
-        "order": "strength.desc",
+        "or": f"(contact_name.not.is.null,fit.gte.{STRONG})",
         "select": "id,title,company_raw,location,url,contact_name,contact_role,"
-                  "source_name,contacts_at_company,strength",
+                  "source_name,contacts_at_company,strength,fit,salary_min,"
+                  "salary_max,workplace",
     })
+    # Both axes first, then warm, then fit.
+    rows.sort(key=lambda r: (
+        -(1 if r.get("contact_name") and (r.get("fit") or 0) >= STRONG else 0),
+        -(r.get("strength") or 0),
+        -(r.get("fit") or 0),
+    ))
     if not rows:
         print(f"{args.name or args.owner}: nothing new")
         return
 
     top = rows[:MAX_JOBS]
-    head = f"<b>{len(rows)} new job{'s' if len(rows) != 1 else ''} where you know someone</b>"
-    lines = [head, ""]
+    warm = sum(1 for r in rows if r.get("contact_name"))
+    lines = [f"<b>{len(rows)} new job{'s' if len(rows) != 1 else ''} worth a look</b>"]
+    if warm:
+        lines.append(f"<i>{warm} where you know someone</i>")
+    lines.append("")
+
     for r in top:
-        others = (r.get("contacts_at_company") or 1) - 1
-        extra = f" (+{others} more there)" if others > 0 else ""
-        role = f" · {esc(r['contact_role'])}" if r.get("contact_role") else ""
         lines.append(f'<a href="{r["url"]}">{esc(r["title"])}</a>')
-        lines.append(f"{esc(r['company_raw'])}"
-                     + (f" · {esc(r['location'])}" if r.get("location") else ""))
-        lines.append(f"↳ {esc(r['contact_name'])}{role} — via {esc(r['source_name'])}{extra}")
+        meta = esc(r["company_raw"])
+        if r.get("location"):
+            meta += f" · {esc(r['location'])}"
+        lines.append(meta)
+
+        bits = []
+        if (r.get("fit") or 0) >= STRONG:
+            bits.append("strong match")
+        if r.get("salary_min") and r.get("salary_max"):
+            bits.append(f"${r['salary_min'] // 1000}k–${r['salary_max'] // 1000}k")
+        if r.get("workplace"):
+            bits.append(r["workplace"])
+        if bits:
+            lines.append(" · ".join(bits))
+
+        if r.get("contact_name"):
+            others = (r.get("contacts_at_company") or 1) - 1
+            extra = f" (+{others} more there)" if others > 0 else ""
+            role = f" · {esc(r['contact_role'])}" if r.get("contact_role") else ""
+            lines.append(f"↳ {esc(r['contact_name'])}{role} — via {esc(r['source_name'])}{extra}")
         lines.append("")
     if len(rows) > MAX_JOBS:
         lines.append(f"…and {len(rows) - MAX_JOBS} more.")

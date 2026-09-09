@@ -3,10 +3,14 @@ dist
 .env
 .DS_Store
 supabase/.temp
-data/*.jsonl
-data/load.sql
-data/raw
+# Everything under data/ is generated or personal — including subdirectories,
+# which `data/*.jsonl` did not cover.
+data/
 __pycache__/
 *.pyc
 data/preview.json
 public/previewData.json
+
+# Real people's search config stays local; the repo is public.
+profiles/*.json
+!profiles/example.json
