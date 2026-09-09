@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.DS_Store
+supabase/.temp
+data/*.jsonl
+data/load.sql
+data/raw
+__pycache__/
+*.pyc
+data/preview.json
+public/previewData.json
