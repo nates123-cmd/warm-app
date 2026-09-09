@@ -36,13 +36,28 @@ def main():
     with open(args.profile) as fh:
         prof = json.load(fh)
 
-    owner = find_user(args.email)
-    if not owner:
-        raise SystemExit(
-            f"No account for {args.email} yet. Have them open the app and sign in "
-            f"with that address once, then re-run this.")
-
     url, key = _env()
+    owner = find_user(args.email)
+
+    if not owner:
+        # No auth user until they first sign in, so stage the config by email.
+        # The app claims it on their first visit; nobody has to re-run this.
+        body = json.dumps({
+            "email": args.email.lower(),
+            "display_name": prof.get("display_name"),
+            "queries": prof.get("queries", []),
+            "fit_criteria": prof.get("fit_criteria", {}),
+        }).encode()
+        req = urllib.request.Request(
+            f"{url}/rest/v1/warm_pending_profiles?on_conflict=email", data=body,
+            headers=_headers(key, {"Prefer": "resolution=merge-duplicates,return=minimal"}),
+            method="POST")
+        urllib.request.urlopen(req, timeout=25)
+        print(f"{prof.get('display_name')}: no account yet — staged "
+              f"{len(prof.get('queries', []))} searches for {args.email}.")
+        print("  It applies itself the first time they sign in.")
+        return
+
     body = json.dumps({
         "owner_id": owner,
         "display_name": prof.get("display_name"),

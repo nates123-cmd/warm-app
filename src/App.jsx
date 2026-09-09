@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
+import { claimPendingProfile } from './lib/claimProfile'
 import { Feed } from './surfaces/Feed'
 import { Import } from './surfaces/Import'
 import { Review } from './surfaces/Review'
@@ -18,8 +19,16 @@ export default function App() {
   const [ownerId, setOwnerId] = useState(null)
   const [reviewCount, setReviewCount] = useState(0)
 
+  const [claimed, setClaimed] = useState(null)
+
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setOwnerId(data?.user?.id ?? null))
+    supabase.auth.getUser().then(async ({ data }) => {
+      const id = data?.user?.id ?? null
+      setOwnerId(id)
+      // Config staged before they had an account attaches itself here.
+      const pending = await claimPendingProfile(id)
+      if (pending) setClaimed(pending)
+    })
   }, [])
 
   useEffect(() => {
@@ -48,6 +57,13 @@ export default function App() {
           ))}
         </nav>
       </header>
+
+      {claimed && (
+        <div className="ok">
+          Set up with {(claimed.queries || []).length} searches. Adjust them any
+          time under Setup.
+        </div>
+      )}
 
       <main>
         {view === 'feed' && <Feed tab={tab} setTab={setTab} />}
