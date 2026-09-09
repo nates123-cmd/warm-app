@@ -97,7 +97,7 @@ export function Feed({ tab, setTab }) {
         <div className="empty">
           <p>Nothing here.</p>
           <p className="muted">
-            {tab === 'best' && 'No new job that is both a good fit and somewhere you know someone.'}
+            {tab === 'best' && 'Nothing new that matches your searches or lands where you know someone.'}
             {tab === 'warm' && 'No new postings where you know someone.'}
             {tab === 'fit' && 'No new postings that closely match what you are looking for.'}
             {tab === 'all' && 'Nothing new today. Check your searches under Setup.'}

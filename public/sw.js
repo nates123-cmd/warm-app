@@ -1,5 +1,5 @@
 // Bump on every ship. /ship reads this line.
-const CACHE = 'warm-v1'
+const CACHE = 'warm-v2'
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()

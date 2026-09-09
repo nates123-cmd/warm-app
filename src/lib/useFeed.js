@@ -22,8 +22,11 @@ export function useFeed(tab) {
     let q = supabase.from('warm_feed').select('*').limit(300)
 
     if (tab === 'best') {
-      // Both axes at once: someone you know, and a job worth wanting.
-      q = q.eq('status', 'new').not('contact_name', 'is', null).gte('fit', WORTH)
+      // Worth acting on for either reason. Requiring both axes at once empties
+      // the tab for anyone who has only one of them yet — which is everybody on
+      // day one, since contacts arrive by CSV import and fit needs criteria.
+      // Both-axes jobs still sort to the top, in the ordering below.
+      q = q.eq('status', 'new').or(`contact_name.not.is.null,fit.gte.${STRONG}`)
     } else if (tab === 'warm') {
       q = q.eq('status', 'new').not('contact_name', 'is', null)
     } else if (tab === 'fit') {
