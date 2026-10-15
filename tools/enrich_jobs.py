@@ -15,11 +15,11 @@ import random
 import re
 import sys
 import time
-import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from linkedin import get  # noqa: E402
 
 DETAIL = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
-UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-      "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 
 DESC_RE = re.compile(r'description__text.*?<div[^>]*>(.*?)</div>\s*</div>', re.S)
 CRIT_RE = re.compile(
@@ -69,20 +69,18 @@ def parse_workplace(title, location, description):
 
 
 def fetch(job_id, timeout=25):
-    req = urllib.request.Request(DETAIL.format(job_id), headers={
-        "User-Agent": UA, "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-    })
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.read().decode("utf-8", "replace")
+    return get(DETAIL.format(job_id), timeout=timeout)
 
 
-def enrich(job, delay=2.0, verbose=True):
+def enrich(job, delay=4.0, verbose=True):
     try:
         page = fetch(job["linkedin_job_id"])
     except Exception as exc:
         if verbose:
             print(f"    {job['linkedin_job_id']}: {exc}", file=sys.stderr)
+        # Still pace ourselves: firing the next request at once is what
+        # turned one 429 into a run of them.
+        time.sleep(delay + random.random())
         return None
     m = DESC_RE.search(page)
     description = strip_tags(m.group(1)) if m else ""
@@ -105,7 +103,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", default="data/jobs.jsonl")
     ap.add_argument("--out", default="data/jobs.jsonl")
-    ap.add_argument("--delay", type=float, default=2.0)
+    ap.add_argument("--delay", type=float, default=4.0)
     ap.add_argument("--limit", type=int, default=0, help="0 = no cap")
     args = ap.parse_args()
 

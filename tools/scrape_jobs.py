@@ -16,14 +16,12 @@ import re
 import sys
 import time
 import urllib.parse
-import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from linkedin import get  # noqa: E402
 from normalize import norm_company  # noqa: E402
 
 ENDPOINT = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
-UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-      "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 PAGE_SIZE = 10  # what LinkedIn advances `start` by, regardless of cards returned
 
 CARD_RE = re.compile(r'data-entity-urn="urn:li:jobPosting:(\d+)"')
@@ -44,13 +42,7 @@ def fetch(keywords, location, tpr, start, timeout=25):
         "keywords": keywords, "location": location,
         "f_TPR": tpr, "start": start,
     })
-    req = urllib.request.Request(f"{ENDPOINT}?{qs}", headers={
-        "User-Agent": UA,
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-    })
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.read().decode("utf-8", "replace")
+    return get(f"{ENDPOINT}?{qs}", timeout=timeout)
 
 
 def parse_cards(page, query_label):
@@ -83,7 +75,7 @@ def parse_cards(page, query_label):
     return jobs
 
 
-def scrape(keywords, location, tpr="r86400", max_pages=4, delay=2.5, verbose=True):
+def scrape(keywords, location, tpr="r86400", max_pages=4, delay=4.0, verbose=True):
     seen, out = set(), []
     for page_no in range(max_pages):
         try:
@@ -112,7 +104,7 @@ def main():
     ap.add_argument("--out", default="data/jobs.jsonl")
     ap.add_argument("--tpr", default="r86400", help="r86400=24h, r604800=7d")
     ap.add_argument("--max-pages", type=int, default=4)
-    ap.add_argument("--delay", type=float, default=2.5)
+    ap.add_argument("--delay", type=float, default=4.0)
     args = ap.parse_args()
 
     with open(args.queries) as fh:
